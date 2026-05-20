@@ -1,0 +1,96 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            Int        @id @default(autoincrement())
+  name          String
+  email         String     @unique
+  password      String
+  role          String     @default("TECHNICIAN") // ADMIN | TECHNICIAN | DOCTOR | DELIVERY_AGENT
+  phone         String?
+  avatar        String?
+  createdAt     DateTime   @default(now())
+  cases         Case[]     @relation("TechnicianCases")
+  notes         Note[]
+  uploadedFiles CaseFile[] @relation("UploadedFiles")
+}
+
+model Case {
+  id           Int        @id @default(autoincrement())
+  patientName  String
+  doctorName   String
+  caseType     String     // DIGITAL | TRADITIONAL
+  crownType    String
+  status       String     @default("PENDING") // PENDING | IN_PROGRESS | COMPLETED | DELAYED
+  priority     String     @default("NORMAL")  // LOW | NORMAL | HIGH | URGENT
+  dueDate      DateTime?
+  toothNumber    Int?
+  toothNumbers   String?   // JSON array, e.g. "[11,21,22]"
+  technicianId   Int?
+  deliveryStatus String?   // READY_FOR_PICKUP | PICKED_UP | DELIVERED
+  technician     User?      @relation("TechnicianCases", fields: [technicianId], references: [id])
+  caseSteps      CaseStep[]
+  files          CaseFile[]
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+}
+
+model CrownType {
+  id       Int     @id @default(autoincrement())
+  name     String  @unique
+  nameAr   String?
+  isActive Boolean @default(true)
+  order    Int     @default(0)
+}
+
+model WorkflowStep {
+  id          Int        @id @default(autoincrement())
+  name        String
+  nameAr      String?
+  type        String     // DIGITAL | TRADITIONAL
+  order       Int
+  description String?
+  isActive    Boolean    @default(true)
+  caseSteps   CaseStep[]
+}
+
+model CaseStep {
+  id          Int          @id @default(autoincrement())
+  caseId      Int
+  stepId      Int
+  order       Int          @default(0)
+  status      String       @default("PENDING") // PENDING | CURRENT | COMPLETED
+  completedAt DateTime?
+  notes       Note[]
+  case        Case         @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  step        WorkflowStep @relation(fields: [stepId], references: [id])
+}
+
+model Note {
+  id         Int      @id @default(autoincrement())
+  caseStepId Int
+  content    String
+  authorId   Int?
+  author     User?    @relation(fields: [authorId], references: [id])
+  createdAt  DateTime @default(now())
+  caseStep   CaseStep @relation(fields: [caseStepId], references: [id], onDelete: Cascade)
+}
+
+model CaseFile {
+  id           Int      @id @default(autoincrement())
+  caseId       Int
+  filename     String
+  originalName String
+  mimetype     String
+  size         Int
+  uploadedById Int?
+  createdAt    DateTime @default(now())
+  case         Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  uploadedBy   User?    @relation("UploadedFiles", fields: [uploadedById], references: [id])
+}
